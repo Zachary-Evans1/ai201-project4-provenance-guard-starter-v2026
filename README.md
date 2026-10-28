@@ -53,35 +53,35 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures: It measures the predictability of the given text by measuring how surprised an AI model is by the text with a perplexity score. It then converts that score into another score between 0 and 1, where a score closer to 1 means the text is more likely to be AI.**
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing: An AI will produce text that is not surprising to an AI. AI's tend to have specific word choices and sentence patterns, and humans tend to have different and changing writing styles, this means that human writing will "perplex" and AI more than writing by another AI.**
 
-**What it can't see:**
+**What it can't see: The signal cannot see who wrote the text, only how predicable the text is to a model. A human who writes the same way an AI would could risk getting flagged.**
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures: It measures the spread of sentence lengths, how unique the vocabulary is, and how frequently punctuation appears relative to text length.**
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing: Humans tend to be more varied in how they write, and make more errors. An AI will be more likely to strictly follow the rules of writing. Humans on the other hand will use run-on sentences, overuse or underuse punctuation, and repeat words more often rather than changing it up.**
 
-**What it can't see:**
+**What it can't see: The signal cannot see if the text was modified before hand. If I were to take an AI generated sentence and change some words, add or remove some words, and add or remove punctuation, the style signal score could change a lot, without changing the meaning of the text.**
 
 ### The combining rule
 
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule: A weighted average between the two scores starting at a weight of 0.5.**
 
-**The numbers:**
+**The numbers: combined = w * perplexity_score + (1 - w) * stylometric_score, where w = 0.5 at the start.**
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it:**
+**A case where my two signals split, and what my rule does with it: If the two signals split, the score will take that into account with the weight I choose, if it is the base of 0.5, it will take both scores into account equally, resulting in a score between the two signals. A weighted score will land closer whichever score has the larger weight. A higher w leans toward perplexity, a lower w leans towards style.**
 
 
 
