@@ -42,61 +42,61 @@ Two things worth knowing before you pick numbers:
   a **miss**.
 
 ---
-## 1.
+## 1. False Positives
 
-<!-- Your criterion. It must name a number. -->
-
-
-
-**Why this target:**
+A false positive, where a human gets a Likely AI label, only happens in 1/10 runs on 10 different pieces human-written text.
 
 
 
----
-
-## 2.
-
-<!-- Your criterion. -->
-
-
-
-**Why this target:**
+**Why this target: This will allow for small errors while keeping a maximum 10% false-positive rate on your test set.**
 
 
 
 ---
 
-## 3.
+## 2. Score Spread
 
-<!-- Your criterion. -->
-
-
-
-**Why this target:**
+Clearly Human-Written examples and clearly AI-Written examples should have a score difference of at least 0.3 in 4/5 test cases in all three trials.
 
 
 
----
-
-## 4.
-
-<!-- Your criterion. -->
-
-
-
-**Why this target:**
+**Why this target: I wanted the score separation to not be to hard or easy to reach, so 0.3 seemed like a good separation, and 4/5 in all three trials shows my model is accurate in this regard.**
 
 
 
 ---
 
-## 5.
+## 3. Label Coverage
 
-<!-- Your criterion. -->
+Each label will appear at least once in all three trials.
 
 
 
-**Why this target:**
+**Why this target: If each label appears once in each of the test trials, that will show that the label thresholds are reachable.**
+
+
+
+---
+
+## 4. The Appeal Path
+
+An appeal will only change status to "under_review" and be recorded if the original label is `Likely AI` or `Unsure.`
+
+
+
+**Why this target: The appeal system exists mostly for false positives, false negatives don't really need to be appealed, nor do those appeals need to be recorded.**
+
+
+
+---
+
+## 5. Bad input
+
+If the text input is an empty string, contains only whitespace or punctuation, over 1000 words, or fewer than 5 words, the input will be rejected and give the user an error message in every test case.
+
+
+
+**Why this target: This covers a lot of edge cases with user input, I choose a limit of 1000 because I've found when writing an average double spaced two page paper I use around 600-800 words, so a limit of 1000 seems reasonable.**
 
 
 
