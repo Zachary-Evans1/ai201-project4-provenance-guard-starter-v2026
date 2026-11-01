@@ -122,13 +122,44 @@
      diagnostics. -->
 
 ```bash
-$ curl -X POST http://127.0.0.1:5000/submit \
-  -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+curl -X POST http://127.0.0.1:5000/submit `    
+>>   -H "Content-Type: application/json" `
+>>   -d '{"text":"I enjoy learning about software engineering and programming.","creator_id":"test-user"}'
 ```
 
 ```json
+{
+  "confidence": 0.0,
+  "content_id": "f0efe6fe-6dd1-4b99-afab-f679b3438ace",
+  "guess": "human",
+  "label": "placeholder",
+  "model_score": 0.3851,
+  "style_score": 0.0
+}
+```
 
+**Log for submission**
+```bash
+curl "http://127.0.0.1:5000/log?limit=1"
+```
+
+```json
+{
+  "count": 1,
+  "entries": [
+    {
+      "combined_score": null,
+      "content_id": "f0efe6fe-6dd1-4b99-afab-f679b3438ace",
+      "creator_id": "test-user",
+      "guess": "human",
+      "label": null,
+      "model_score": 0.3851,
+      "status": "decided",
+      "style_score": null,
+      "timestamp": "2026-11-01T17:46:53+00:00"
+    }
+  ]
+}
 ```
 
 **An appeal**

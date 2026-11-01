@@ -150,6 +150,26 @@ def health():
 
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
+MIN_WORDS = 5
+MAX_WORDS = 1000
+
+
+def _text_problem(text: str) -> str | None:
+    """
+    Why this text can't be scored, or None if it can. Criterion 5 in criteria.md.
+    """
+    words = text.split()
+    if not words:
+        return "Text is empty or only whitespace."
+    if not any(ch.isalnum() for ch in text):
+        return "Text has no letters or numbers."
+    if len(words) < MIN_WORDS:
+        return f"Text needs at least {MIN_WORDS} words; this has {len(words)}."
+    if len(words) > MAX_WORDS:
+        return f"Text is over {MAX_WORDS} words; this has {len(words)}."
+    return None
+
+
 @app.post("/submit")
 # @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
@@ -200,16 +220,50 @@ def submit():
     a malformed input is one of the most common real failures there is.
     """
     payload = request.get_json(silent=True) or {}
+    text = payload.get("text")
+    creator_id = payload.get("creator_id")
 
-    # TODO: delete this and build the route.
+    # Missing or wrong-typed fields are a client error, not a crash.
+    if not isinstance(text, str) or not isinstance(creator_id, str):
+        return jsonify({
+            "error": "bad_request",
+            "message": "Expected JSON with string fields 'text' and 'creator_id'.",
+        }), 400
+
+    problem = _text_problem(text)
+    if problem:
+        return jsonify({"error": "bad_input", "message": problem}), 400
+
+    import detector
+
+    # Milestone 3, step 3: the first signal. Confidence and label stay
+    # placeholders until Milestones 4 and 5.
+    try:
+        model_score = detector.model_signal(text)
+    except ValueError as exc:
+        return jsonify({"error": "text_too_short", "message": str(exc)}), 400
+    except detector.DetectorUnavailable as exc:
+        return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
+
+    content_id = str(uuid.uuid4())
+    guess = "ai" if model_score >= 0.5 else "human"
+
+    audit.log_decision(
+        content_id=content_id,
+        creator_id=creator_id,
+        guess=guess,
+        model_score=model_score,
+        status="decided",
+    )
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /submit isn't built yet — see the TODO in app.py.",
-        "you_sent": {
-            "text_length": len(payload.get("text", "")),
-            "creator_id": payload.get("creator_id"),
-        },
-    }), 501
+        "content_id": content_id,
+        "guess": guess,
+        "confidence": 0.0,
+        "label": "placeholder",
+        "model_score": model_score,
+        "style_score": 0.0,
+    })
 
 
 @app.post("/appeal")
