@@ -44,11 +44,11 @@ Two things worth knowing before you pick numbers:
 ---
 ## 1. False Positives
 
-A false positive, where a human gets a Likely AI label, only happens in 1/10 runs on 10 different pieces human-written text.
+A false positive, where a human gets an AI label, only happens in 2/10 tests on 10 different pieces human-written text.
 
 
 
-**Why this target: This will allow for small errors while keeping a maximum 10% false-positive rate on your test set.**
+**Why this target: This will allow for small errors while keeping a maximum 20% false-positive rate on the test set.**
 
 
 

@@ -39,7 +39,13 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
-
+1. Submission: A user submits text and their `creator_id` through /submit
+2. Validation: The application checks that the submitted text is valid and meets the requirements for an input.
+3. Model Signal: The text is analyzed by the language model detector, which produces a score indicating how AI-like the model thinks the text is.
+4. Style signal: The stylometry system analyzes writing characteristics, such as sentence-length variation, vocabulary diversity, and punctuation. It then combines those characteristics to give a score
+5. Score Combination: The two scores are combined using weights to produce a combined score.
+6. Labeling and Logging: The combined score determines whether the text is labeled human, unsure, or ai. The decision and scores are recorded in the audit log.
+7. Response and Appeal: The application returns the label and scores to the user. If the label was unsure or ai, the user can submit an appeal, which is recorded in the audit log with an `under_review` status.
 
 ---
 
@@ -206,15 +212,15 @@ curl "http://127.0.0.1:5000/log?limit=2"
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for: Help reviewing my label thresholds and the score_to_label() function with ChatGPT*
+- *What came back: Feedback about overlapping score boundaries and how to make the three label ranges distinct.*
+- *What I changed: It originally did not include 0.35 in the human classification, but I had to change that when I moved to working on scoring.py.*
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for: Help implementing my submit endpoint.*
+- *What came back: Claude generated a working submit endpoint both times I asked it too.*
+- *What I changed: Claude Code initially generated placeholder scoring logic because I had not implemented the scoring functions yet. I later replaced that placeholder with this:  `guess, label_text = scoring.score_to_label(combined_score)` once I had implemented the scoring logic. I then tested the code to make sure all the labels were reachable, they were.*
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
