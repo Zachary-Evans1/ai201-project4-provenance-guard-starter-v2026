@@ -252,7 +252,17 @@ def submit():
     combined_score = scoring.combine_signals(model_score, style_score)
 
     content_id = str(uuid.uuid4())
-    guess = "ai" if combined_score >= 0.5 else "human"
+    guess, label_text = scoring.score_to_label(combined_score)
+    # How far past the threshold this score sits, scaled 0-1, so it agrees with
+    # the bands in scoring.score_to_label. The unsure band reports 0.
+    if combined_score >= config.AI_THRESHOLD:
+        confidence = (combined_score - config.AI_THRESHOLD) / (1 - config.AI_THRESHOLD)
+    elif combined_score <= config.HUMAN_THRESHOLD:
+        confidence = (config.HUMAN_THRESHOLD - combined_score) / config.HUMAN_THRESHOLD
+    else:
+        confidence = 0.0
+    confidence = round(confidence, 4)
+
 
     audit.log_decision(
         content_id=content_id,
@@ -261,14 +271,15 @@ def submit():
         model_score=model_score,
         style_score=style_score,
         combined_score=combined_score,
+        label=label_text,
         status="decided",
     )
 
     return jsonify({
         "content_id": content_id,
         "guess": guess,
-        "confidence": 0.0,
-        "label": "placeholder",
+        "confidence": confidence,
+        "label": label_text,
         "model_score": model_score,
         "style_score": style_score,
         "combined_score": combined_score,
@@ -297,12 +308,60 @@ def appeal():
     """
     payload = request.get_json(silent=True) or {}
 
-    # TODO: delete this and build the route.
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning")
+
+    if not isinstance(content_id, str) or not isinstance(reasoning, str):
+        return jsonify({
+            "error": "bad_request",
+            "message": "Expected JSON with string fields 'content_id' and 'reasoning'.",
+        }), 400
+
+    if not content_id.strip() or not reasoning.strip():
+        return jsonify({
+            "error": "bad_request",
+            "message": "Both content_id and reasoning must contain text.",
+        }), 400
+
+    entries = audit.entries_for(content_id)
+    if not entries:
+        return jsonify({
+            "error": "not_found",
+            "message": f"No submission found with content_id {content_id}.",
+        }), 404
+
+    original = next(
+        (entry for entry in entries if entry.get("status") == "decided"),
+        None
+    )
+
+    if not original:
+        return jsonify({
+            "error": "not_found",
+            "message": f"No original decision found for content_id {content_id}.",
+        }), 404
+
+    if original.get("guess") not in ("ai", "unsure"):
+        return jsonify({
+            "error": "invalid_appeal",
+            "message": "Cannot appeal a decision that already guessed 'human'.",
+        }), 400
+
+    creator_id = original.get("creator_id")
+
+    if not isinstance(creator_id, str) or not creator_id.strip():
+        return jsonify({
+            "error": "invalid_record",
+            "message": "The original decision is missing a valid creator_id.",
+        }), 500
+
+    audit.log_appeal(content_id, creator_id, reasoning)
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+        "content_id": content_id,
+        "status": "under_review",
+        "message": "Your appeal has been received and is under review.",
+    }), 200
 
 
 # ── Already works ─────────────────────────────────────────────────────────────
