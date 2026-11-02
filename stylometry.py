@@ -64,8 +64,16 @@ def sentence_length_spread(text: str) -> float:
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
     """
-    # TODO: replace this
-    return 0.0
+    # Low spread means more AI-ish, High spread means more human-ish.
+    num_sentences = sentences(text)
+    if len(num_sentences) < 2:
+        return 0.0
+    num_words = [len(words(sentence)) for sentence in num_sentences]
+    mean_length = statistics.mean(num_words)
+    if mean_length == 0:
+        return 0.0
+    cv = statistics.stdev(num_words) / mean_length
+    return cv / (1 + cv)
 
 
 def type_token_ratio(text: str) -> float:
@@ -80,8 +88,13 @@ def type_token_ratio(text: str) -> float:
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
     """
-    # TODO: replace this
-    return 0.0
+    #Higher number means more varied vocabulary, which is more human-ish.
+    words_list = words(text)
+    num_words = len(words_list)
+    if num_words == 0:
+        return 0.0
+    unique_words = set(words_list)
+    return len(unique_words) / num_words
 
 
 def punctuation_density(text: str) -> float:
@@ -94,8 +107,14 @@ def punctuation_density(text: str) -> float:
         more interesting than full stops, because they vary more between
         writers.
     """
-    # TODO: replace this
-    return 0.0
+    # Higher number means more punctuation, which is AI-ish. Count only semicolons, colons, and em dashes.
+    PUNCTUATION = set(";:—")
+    punctuation_count = sum(1 for ch in text if ch in PUNCTUATION)
+    num_words = len(words(text))
+    if num_words == 0:
+        return 0.0
+    CEILING = 0.02  #Set a ceiling to make sure the score wasn't super low, set to about 2 per 100 words.
+    return min((punctuation_count / num_words) / CEILING, 1.0)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +141,11 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    sentence_spread = 1-sentence_length_spread(text)
+    type_token = 1-type_token_ratio(text)
+    punctuation = punctuation_density(text)
+    sum_score = sentence_spread + type_token + punctuation
+    return sum_score / 3  # Average of the three measures, scaled to 0-1
 
 
 if __name__ == "__main__":

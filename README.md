@@ -72,16 +72,29 @@
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule: A weighted average between the two scores starting at a weight of 0.5.**
+**The rule: A weighted average between the two scores with a weight of 0.6 for the style signal and a weight of 0.4 for the model signal**
 
-**The numbers: combined = w * perplexity_score + (1 - w) * stylometric_score, where w = 0.5 at the start.**
+**The numbers: combined = config.WEIGHT_MODEL_SIGNAL(0.4) * model_score + config.WEIGHT_STYLE_SIGNAL(0.6) * style_score.**
 
 **Where it lives:** `scoring.py::combine_signals`
 
 <!-- ⚠️ The grader checks your code against that line. If your rule lives
      somewhere else, say where. -->
 
-**A case where my two signals split, and what my rule does with it: If the two signals split, the score will take that into account with the weight I choose, if it is the base of 0.5, it will take both scores into account equally, resulting in a score between the two signals. A weighted score will land closer whichever score has the larger weight. A higher w leans toward perplexity, a lower w leans towards style.**
+**A case where my two signals split, and what my rule does with it:**
+
+The Case: "Everyone knows what a tree is: a large woody thing that provides shade. Oaks, pines and similarly large majestic trees probably come immediately to mind. A stricter, botanical definition is that a tree is any plant with a self-supporting, perennial woody stem (i.e. living for more than one year). The first question that normally comes back at this point is to ask what then is a shrub? To horticulturalists, a ‘tree’ is defined as having a single stem more than 6 m (20 ft) tall, which branches at some distance above ground, whereas a shrub has multiple stems from the ground and is less than 6 m tall. This is a convenient definition for those writing tree identification books who wish to limit the number of species they must include. In this book, however, shrubs are thought of as being just small trees since they work in exactly the same way as their bigger neighbours. Thus, ‘trees’ cover the towering giants over 100 m through to the little sprawling alpine willows no more than a few centimetres tall." 
+
+The Scores: 
+sentence_length_spread   0.33221756618380066
+type_token_ratio         0.6666666666666666
+punctuation_density      0.2777777777777778
+style_signal             0.4262978483091035   (higher = more likely AI)
+
+perplexity     33.4
+model_signal   0.6165   (higher = more likely AI)
+
+What my rule does: The score will take the spilt into account with the weight I choose, which favors the style signal score. It will multiply the style score by 0.6 and the model score by 0.4, then add them together.
 
 
 
