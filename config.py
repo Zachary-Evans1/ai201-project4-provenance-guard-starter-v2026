@@ -47,6 +47,14 @@ DETECTOR_MODEL = os.getenv("AI201_DETECTOR_MODEL", "gpt2")
 DETECTOR_MAX_TOKENS = 400
 
 
+# ─── Input limits (Milestone 3) ──────────────────────────────────────────────
+# How much text a submission must contain to be scored. Shorter than this and
+# the signals have nothing to measure; longer than this and the model is slow.
+
+MIN_WORDS = 5
+MAX_WORDS = 1000
+
+
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.
 #
@@ -56,6 +64,17 @@ DETECTOR_MAX_TOKENS = 400
 
 WEIGHT_MODEL_SIGNAL = 0.4
 WEIGHT_STYLE_SIGNAL = 0.6
+
+# Inside the style signal (stylometry.style_signal), the three measures each
+# count for this much. Each measure is already flipped and scaled to 0–1, so
+# these must sum to 1.0 or the style score drifts out of range.
+WEIGHT_SENTENCE_SPREAD = 1 / 3
+WEIGHT_TYPE_TOKEN = 1 / 3
+WEIGHT_PUNCTUATION = 1 / 3
+
+# Punctuation density (semicolons, colons, em dashes per word) at which the
+# punctuation measure reaches its maximum of 1.0. 0.02 is about 2 per 100 words.
+PUNCTUATION_CEILING = 0.02
 
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
@@ -92,7 +111,7 @@ AI_THRESHOLD = 0.65
 # an hour, and a script sending a thousand variations to map your thresholds.
 # Your README has to say why your numbers and not others.
 
-RATE_LIMITING_ENABLED = os.getenv("AI201_RATE_LIMITS", "0") == "1"
+RATE_LIMITING_ENABLED = os.getenv("AI201_RATE_LIMITS", "1") == "1"
 
 RATE_LIMIT_PER_MINUTE = 10
 RATE_LIMIT_PER_DAY = 200

@@ -33,6 +33,8 @@ anything together:
 import re
 import statistics
 
+import config
+
 
 def sentences(text: str) -> list[str]:
     """Split into sentences. Rough and good enough — given to you."""
@@ -113,8 +115,9 @@ def punctuation_density(text: str) -> float:
     num_words = len(words(text))
     if num_words == 0:
         return 0.0
-    CEILING = 0.02  #Set a ceiling to make sure the score wasn't super low, set to about 2 per 100 words.
-    return min((punctuation_count / num_words) / CEILING, 1.0)
+    # The ceiling keeps one punctuation-heavy text from scoring off the scale.
+    # It lives in config.py with the other tunable numbers.
+    return min((punctuation_count / num_words) / config.PUNCTUATION_CEILING, 1.0)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -141,11 +144,16 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    sentence_spread = 1-sentence_length_spread(text)
-    type_token = 1-type_token_ratio(text)
+    sentence_spread = 1 - sentence_length_spread(text)
+    type_token = 1 - type_token_ratio(text)
     punctuation = punctuation_density(text)
-    sum_score = sentence_spread + type_token + punctuation
-    return sum_score / 3  # Average of the three measures, scaled to 0-1
+    # Weighted average of the three measures. The weights live in config.py
+    # and must sum to 1.0, so the result stays on the 0-1 scale.
+    return (
+        config.WEIGHT_SENTENCE_SPREAD * sentence_spread
+        + config.WEIGHT_TYPE_TOKEN * type_token
+        + config.WEIGHT_PUNCTUATION * punctuation
+    )
 
 
 if __name__ == "__main__":

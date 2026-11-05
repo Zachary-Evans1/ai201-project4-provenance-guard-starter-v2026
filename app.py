@@ -30,6 +30,7 @@ from flask import Flask, jsonify, request
 
 import audit
 import config
+import detector
 import scoring
 import stylometry
 
@@ -138,8 +139,6 @@ def ping():
 @app.get("/health")
 def health():
     """Is the service up, and has the model been downloaded yet?"""
-    import detector
-
     loaded = detector._model is not None
     return jsonify({
         "ok": True,
@@ -152,10 +151,6 @@ def health():
 
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
-MIN_WORDS = 5
-MAX_WORDS = 1000
-
-
 def _text_problem(text: str) -> str | None:
     """
     Why this text can't be scored, or None if it can. Criterion 5 in criteria.md.
@@ -165,15 +160,37 @@ def _text_problem(text: str) -> str | None:
         return "Text is empty or only whitespace."
     if not any(ch.isalnum() for ch in text):
         return "Text has no letters or numbers."
-    if len(words) < MIN_WORDS:
-        return f"Text needs at least {MIN_WORDS} words; this has {len(words)}."
-    if len(words) > MAX_WORDS:
-        return f"Text is over {MAX_WORDS} words; this has {len(words)}."
+    if len(words) < config.MIN_WORDS:
+        return f"Text needs at least {config.MIN_WORDS} words; this has {len(words)}."
+    if len(words) > config.MAX_WORDS:
+        return f"Text is over {config.MAX_WORDS} words; this has {len(words)}."
     return None
 
 
+def _refuse(route: str, status: int, body: dict, creator_id=None, **extra):
+    """
+    Answer a refused request, and write the refusal to the audit log.
+
+    A refusal that leaves no trace looks the same as no traffic at all, so every
+    rejection on /submit and /appeal goes through here: the client gets `body`
+    and `status`, and the log gets one `rejected` entry naming the route, the
+    error code and the message the client was given.
+
+    The submitted text is never logged, only the metadata above.
+    """
+    logged_creator = creator_id if isinstance(creator_id, str) and creator_id.strip() else "unknown"
+    audit.log_rejection(
+        creator_id=logged_creator,
+        reason=body["error"],
+        route=route,
+        message=body["message"],
+        **extra,
+    )
+    return jsonify(body), status
+
+
 @app.post("/submit")
-# @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
+@limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
     Take a piece of text, decide about it, log the decision, answer.
@@ -225,27 +242,29 @@ def submit():
     text = payload.get("text")
     creator_id = payload.get("creator_id")
 
-    # Missing or wrong-typed fields are a client error, not a crash.
+    # Missing or wrong-typed fields are a client error, not a crash. Every
+    # refusal is logged as well as answered.
     if not isinstance(text, str) or not isinstance(creator_id, str):
-        return jsonify({
+        return _refuse("/submit", 400, {
             "error": "bad_request",
             "message": "Expected JSON with string fields 'text' and 'creator_id'.",
-        }), 400
+        }, creator_id=creator_id)
 
     problem = _text_problem(text)
     if problem:
-        return jsonify({"error": "bad_input", "message": problem}), 400
-
-    import detector
+        return _refuse("/submit", 400, {"error": "bad_input", "message": problem},
+                       creator_id=creator_id)
 
     # Milestone 3, step 3: the first signal. Confidence and label stay
     # placeholders until Milestones 4 and 5.
     try:
         model_score = detector.model_signal(text)
     except ValueError as exc:
-        return jsonify({"error": "text_too_short", "message": str(exc)}), 400
+        return _refuse("/submit", 400, {"error": "text_too_short", "message": str(exc)},
+                       creator_id=creator_id)
     except detector.DetectorUnavailable as exc:
-        return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
+        return _refuse("/submit", 503, {"error": "detector_unavailable", "message": str(exc)},
+                       creator_id=creator_id)
 
     # Milestone 4, steps 5-7: the second signal, then the combined score.
     style_score = stylometry.style_signal(text)
@@ -312,23 +331,23 @@ def appeal():
     reasoning = payload.get("reasoning")
 
     if not isinstance(content_id, str) or not isinstance(reasoning, str):
-        return jsonify({
+        return _refuse("/appeal", 400, {
             "error": "bad_request",
             "message": "Expected JSON with string fields 'content_id' and 'reasoning'.",
-        }), 400
+        })
 
     if not content_id.strip() or not reasoning.strip():
-        return jsonify({
+        return _refuse("/appeal", 400, {
             "error": "bad_request",
             "message": "Both content_id and reasoning must contain text.",
-        }), 400
+        }, content_id=content_id)
 
     entries = audit.entries_for(content_id)
     if not entries:
-        return jsonify({
+        return _refuse("/appeal", 404, {
             "error": "not_found",
             "message": f"No submission found with content_id {content_id}.",
-        }), 404
+        }, content_id=content_id)
 
     original = next(
         (entry for entry in entries if entry.get("status") == "decided"),
@@ -336,24 +355,24 @@ def appeal():
     )
 
     if not original:
-        return jsonify({
+        return _refuse("/appeal", 404, {
             "error": "not_found",
             "message": f"No original decision found for content_id {content_id}.",
-        }), 404
+        }, content_id=content_id)
 
     if original.get("guess") not in ("ai", "unsure"):
-        return jsonify({
+        return _refuse("/appeal", 400, {
             "error": "invalid_appeal",
             "message": "Cannot appeal a decision that already guessed 'human'.",
-        }), 400
+        }, creator_id=original.get("creator_id"), content_id=content_id)
 
     creator_id = original.get("creator_id")
 
     if not isinstance(creator_id, str) or not creator_id.strip():
-        return jsonify({
+        return _refuse("/appeal", 500, {
             "error": "invalid_record",
             "message": "The original decision is missing a valid creator_id.",
-        }), 500
+        }, content_id=content_id)
 
     audit.log_appeal(content_id, creator_id, reasoning)
 
