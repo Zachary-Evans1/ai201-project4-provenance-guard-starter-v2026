@@ -578,6 +578,13 @@ that produced it:
 
      Look for a pattern. Five failures on one signal is one problem, not five. -->
 
+Criterion 2: Score Spread, Clearly AI has a 0.3 difference from a clearly human example
+Stage: Signal one and Signal two
+Diagnosis: My AI samples are shorter than my human samples, also, I used more formal writing from school assignments for my human samples, which is leading to both groups, human and AI text, to get a low perplexity score. The length of the samples matters because type_token_ratio rises as text get shorter, so the AI samples look more varied by default
+
+Criterion 3: Label Coverage, 1 Label from each category
+Stage: Signal one and Signal two
+Diagnosis: very input landed in unsure (0.35–0.65), so neither high-confidence label was reached. The model signal put every test at 0.65-0.82, which means the model predicted all three texts closer AI. The style signal put them at 0.31–0.42, which puts all three texts closer to Human. As the combination score is 0.4/0.6 the difference in the two signal scores for each run pulled all three tests towards the middle.
 
 
 ---
