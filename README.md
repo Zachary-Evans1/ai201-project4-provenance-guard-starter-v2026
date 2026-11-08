@@ -584,24 +584,66 @@ Diagnosis: My AI samples are shorter than my human samples, also, I used more fo
 
 Criterion 3: Label Coverage, 1 Label from each category
 Stage: Signal one and Signal two
-Diagnosis: very input landed in unsure (0.35–0.65), so neither high-confidence label was reached. The model signal put every test at 0.65-0.82, which means the model predicted all three texts closer AI. The style signal put them at 0.31–0.42, which puts all three texts closer to Human. As the combination score is 0.4/0.6 the difference in the two signal scores for each run pulled all three tests towards the middle.
+Diagnosis: Every input landed in unsure (0.35–0.65), so neither high-confidence label was reached. The model signal put every test at 0.65-0.82, which means the model predicted all three texts closer AI. The style signal put them at 0.31–0.42, which puts all three texts closer to Human. As the combination score is 0.4/0.6 the difference in the two signal scores for each run pulled all three tests towards the middle.
 
+EV01:
+Stage: Signal two
+Diagnosis: The typos were meant to trick the system to label it human by rasing word variety. This happened with my system, the type-token ratio score was high, so it ended up with a style score of 0.33 which led to the combined score being less than the human threshold.
+
+EV08:
+Stage: Signal 2
+Diagnosis: The text is 10 words in two sentences, so there's too little context for the signal to read reliably. The type-token ratio was 1.0, which pulled the style score heavily towards human.
+
+MF07
+Stage: Signal two
+Diagnosis: While the system worked fine, it labeled the text AI, as the type-token ratio only checks for english letters. The system does not have a check in place to make sure the input consists of only letters from the english alphabet.
+
+RQ07
+Stage: Route
+Diagnosis: The route checks the field types but never checks that the body is a dict, this causes payload.get("text") to fail when presented with a json array instead of text, leading to a 500 error.
 
 ---
 
 ## The Improvement
 
-**What I changed:**
+**What I changed: I changed the `type_token_ratio` function in `stylometry.py`. I changed the function to not count overall unique words over the total words, but the ratio over a 50-word sliding window instead. This takes away the benefit that smaller texts had over longer texts, so now the messages are more equal in their scoring. If the text is under 50 words, the old ratio still is used.**
 
-**Which diagnosis pointed at it:**
+**Which diagnosis pointed at it: Both Criterion 2 and 3, but more at Criterion 3.**
 
 ### Attack Run — After
 
 <!-- Same format. `run_attacks.py --label after` -->
 
+From my count I got this score:
+| Family | Attacks | HELD | BROKE |
+|---|---|---|---|
+| `evasion` | 10 | 7 | 3 |
+| `false_positive` | 8 | 8 | 0 |
+| `flood_same_creator` | 12 | 12 | 0
+| `malformed` | 20 | 18 | 2 |
+| `prompt_injection` | 6 | 6 | 0 |
 
+`flood_same_creator` - 429 after the tenth run, so my rate limit worked.
 
-**Did it help, and how do I know:**
+So 51/56 Held and 5/56 Broke
+
+5 that broke: EV01, EV06, EV08, MF07 and RQ07
+
+1 more broke than last time.
+
+## Run Log and Verdicts After
+
+| Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|---|
+| 1. False Positives | <=2/10 are labeled AI | 0/10 | 0/10 | 0/10 | MET |
+| 2. Score Spread | Clearly AI has a 0.3 difference from a clearly human example | 0/5 | 0/5 | 0/5 | MISSED |
+| 3. Label Coverage | 1 Label from each category | 3 unsure | 3 unsure | 3 unsure | MISSED |
+| 4. The Appeal Path | An appeal will only change status to "under_review" and be recorded if the original label is `Likely AI` or `Unsure.` | 3/3 | 3/3 | 3/3 | MET |
+| 5. Bad input | Bad inputs get rejected and give the user an error message | 6/6 | 6/6 | 6/6 | MET |
+
+Criteria 4 was tested by hand again, as it was in the first run log
+
+**Did it help, and how do I know: No, it made it very slightly worse. I know because the Run Log did not change at all, and with the attacks one less attack was held back.**
 
 <!-- Widening the unsure band usually fixes one problem and creates another.
      Reporting that trade honestly is worth full credit. -->

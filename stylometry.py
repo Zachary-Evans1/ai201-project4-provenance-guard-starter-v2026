@@ -95,9 +95,18 @@ def type_token_ratio(text: str) -> float:
     num_words = len(words_list)
     if num_words == 0:
         return 0.0
-    unique_words = set(words_list)
-    return len(unique_words) / num_words
-
+    window = 50
+    step = 10
+    # Short texts: no window fits, so fall back to the plain ratio.
+    if len(words_list) < window:
+        return len(set(words_list)) / len(words_list)
+    # Average the ratio over sliding 50-word windows, so every text is
+    # measured at the same length.
+    ratios = [
+        len(set(words_list[i:i + window])) / window
+        for i in range(0, len(words_list) - window + 1, step)
+    ]
+    return sum(ratios) / len(ratios)
 
 def punctuation_density(text: str) -> float:
     """
